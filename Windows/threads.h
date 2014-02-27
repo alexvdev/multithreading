@@ -1,3 +1,5 @@
+#pragma once
+
 #include <queue>
 
 // chose different synchronisation objects
@@ -9,29 +11,98 @@ enum SyncType {
 };
 
 // error return types
+const int RET_OK      = 0;
 const int ERR_SYNC    = 1; // error with thread syncshronisation
 const int ERR_STD     = 2; // std::exception
 const int ERR_API     = 3; // API function failed
 const int ERR_UNKNOWN = 4; // catched by catch (...)
 
+typedef unsigned (__stdcall THREAD_FUNCTION)(void*);  // function to pass to _beginthreadex
+
 const char TIMEOUT[] = "Exiting thread, timeout: ";
-void PutThreadFinishMsg(const char* msg, unsigned int timeout = 0);
 
-int runThreads(SyncType syncType=CS_EVENT);
+namespace MT {
 
-void produce(int ms = rand()%10 * 50);
-void wait(int ms);
-void Print(const char* msg);
+class HandleWrapper { // using RAAI idiom
+public:
+    HandleWrapper(HANDLE handle = INVALID_HANDLE_VALUE) : m_handle(handle) {
+    }
+    ~HandleWrapper() {
+        if (isValid())               // with invalid handle values ::CloseHandle returns FALSE 
+            ::CloseHandle(m_handle); // with ERROR_INVALIDE_HANDLE GetLastError() code
+    }
+
+    void SetHandle(HANDLE handle) { // needed for global objects. Although it is no acquisition,
+        if (isValid())              // RAII idea is also releasing resources in the destructor
+            ::CloseHandle(m_handle);
+        m_handle = handle;
+    }
+
+    operator HANDLE() const {
+        return m_handle;
+    }
+
+    bool isValid() const {
+        return ( m_handle != INVALID_HANDLE_VALUE && m_handle != NULL );
+    }
+
+private:
+    // disable copy constructor and assignment operator
+    HandleWrapper(const HandleWrapper&);
+    HandleWrapper& operator=(const HandleWrapper&);
+
+    HANDLE m_handle;
+};
+
+class CriticalSection {
+public:
+    CriticalSection() {
+        m_isValid = ( ::InitializeCriticalSectionAndSpinCount(&m_cs, 0x00000400) != 0 );
+    }
+    ~CriticalSection() {
+        if (m_isValid)
+            ::DeleteCriticalSection(&m_cs);
+    }
+
+    bool isValid() {
+        return m_isValid;
+    }
+
+    bool Enter() {
+        if (m_isValid)
+            ::EnterCriticalSection(&m_cs);
+        return m_isValid;
+    }
+
+    bool Leave() {
+        if (m_isValid)
+            ::LeaveCriticalSection(&m_cs);
+        return m_isValid;
+    }
+
+private:
+    CriticalSection(const CriticalSection&);
+    CriticalSection& operator=(const CriticalSection&);
+
+    CRITICAL_SECTION m_cs;
+    bool m_isValid;
+};
+
 
 class Lock {
-    CRITICAL_SECTION& cs;
+
 public:
-    Lock(CRITICAL_SECTION& _cs) : cs(_cs) { // RAAI idiom
-        ::EnterCriticalSection(&cs);
+   Lock(CriticalSection& cs) : m_cs(cs) { // RAAI idiom
+       m_cs.Enter();
     }
     ~Lock() {
-        ::LeaveCriticalSection(&cs);
+        m_cs.Leave();
     }
+private:
+    Lock(const Lock&);
+    Lock& operator=(const Lock&);
+
+    CriticalSection& m_cs;
 };
 
 // controlling the upper size of the queue
@@ -61,7 +132,6 @@ private:
 };
 
 enum SyncTimerState { ST_WORK, ST_STOP, ST_ERR };
-extern CRITICAL_SECTION g_timer_cs;
 
 // using Singleton GOF pattern
 class SyncTimer {
@@ -74,26 +144,23 @@ public:
     // Alternative implementation with pointers and lazy initialisation
     // as described in GOF book involves that the destructor will not be called
     static SyncTimer& Instance() {
-        Lock lock(g_timer_cs);
+        Lock lock(m_cs);
         static SyncTimer syncTimer;
         return syncTimer;
     }
 
-
     SyncTimer::~SyncTimer() {
-        if (m_handle != NULL)        // ::CloseHandle(NULL) will fail (return FALSE)
-            ::CloseHandle(m_handle); // will error code ERROR_INVALIDE_HANDLE (6), returned by GetLastError()
     }
 
-    bool isHandle() const {
-        return m_handle != NULL;
+    bool isValid() const {
+        return m_hTimer.isValid();
     }
 
     bool SetTimer(const LARGE_INTEGER& t) {
-        Lock lock(g_timer_cs);
+        Lock lock(m_cs);
         m_timeout = t;
         convertTimeOutToSeconds();
-        BOOL ret = ::SetWaitableTimer(m_handle, &m_timeout, 0, NULL, NULL, 0);
+        BOOL ret = ::SetWaitableTimer(m_hTimer, &m_timeout, 0, NULL, NULL, 0);
         return ret != 0;
     }
 
@@ -102,7 +169,7 @@ public:
     }
 
     SyncTimerState State() const {
-        switch (::WaitForSingleObject(m_handle, 0)) {
+        switch (::WaitForSingleObject(m_hTimer, 0)) {
             case WAIT_OBJECT_0: // signalled
                 return ST_STOP;
             case WAIT_TIMEOUT:
@@ -114,22 +181,25 @@ public:
     }
 
 protected:
-    SyncTimer() {
-        m_timeout.QuadPart = 0;
-        m_handle = ::CreateWaitableTimer(
+    SyncTimer() : m_timeoutSec(0),
+        m_hTimer ( ::CreateWaitableTimer(
             NULL,    // security attributes 
             TRUE,    // manual reset: will be signalled for all threads 
             _T("SyncTimer")
-        );
+        ))
+    {   
+        m_timeout.QuadPart = 0;
     }
 
 private:
-    HANDLE m_handle;
+    SyncTimer(const SyncTimer&);
+    SyncTimer& operator=(const SyncTimer&);
+
+    static CriticalSection m_cs;
+
     LARGE_INTEGER m_timeout;
     unsigned m_timeoutSec;
-
-    SyncTimer(const SyncTimer&);            // disable copy constructor
-    SyncTimer& operator=(const SyncTimer&); // and assignment operator
+    HandleWrapper m_hTimer;
 
     void convertTimeOutToSeconds() {
         const int intervalsInSec = 10000000; // timeout is set in 100ns intervals (1 ns == 1,000,000,000)
@@ -151,3 +221,5 @@ private:
         }
     }
 };
+
+} // namespace Multithreading

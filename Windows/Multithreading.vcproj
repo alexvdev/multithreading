@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="Multithreading"
 	ProjectGUID="{FF6E419F-7607-4833-9DBC-D96D34ACF885}"
 	RootNamespace="Multithreading"
@@ -207,6 +207,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\threadrunner.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\threads.cpp"
 				>
 			</File>
@@ -222,6 +226,10 @@
 			</File>
 			<File
 				RelativePath=".\targetver.h"
+				>
+			</File>
+			<File
+				RelativePath=".\threadrunner.h"
 				>
 			</File>
 			<File
