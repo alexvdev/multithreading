@@ -47,7 +47,6 @@ public:
 };
 
 // mutlithreaded access to shared read/write memory: producer-consumer problem
-// http://en.wikipedia.org/wiki/Producer-consumer_problem
 
 class ProducerConsumerRunner : public ThreadRunner {
 public:

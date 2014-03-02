@@ -2,8 +2,17 @@
 #include "threads.h"
 #include "threadrunner.h"
 
-// A sample program demonstrating usage of basic Windows synchronisation objects.
-// Controlling threads code is in threadrunner.cpp
+// A sample program demonstrating usage of basic Windows synchronisation objects
+// by example of solving producer-consumer problem.
+// ( http://en.wikipedia.org/wiki/Producer-consumer_problem )
+//
+// At start user chooses the type of synchronisation objects (main.cpp).
+// Appropriate object of ThreadRunner class hierarchy (threadrunner.h)
+// provides thread management (threadrunner.cpp) and thread function
+// (consumer.cpp, producer.cpp).
+
+// Threads are running until they all will finish or timeout occurs.
+// Common SyncTimer object (threads.h) signals all threads to stop.
 //
 // Alexey Voytenko, alexvgml@gmail.com
 

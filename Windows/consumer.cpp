@@ -136,7 +136,9 @@ unsigned __stdcall ProducerConsumerEventRunner::Consumer(void* args) {
 // Using mutex for synchronisation
 unsigned __stdcall ProducerConsumerMutexRunner::Consumer(void* args) {
 
+    // not using Instance() each time to increase performance (no locks)
     const SyncTimer& syncTimer = SyncTimer::Instance();
+
     const int emptyBufferTimeout = 3000; // 3 sec
     SyncTimerState tState = ST_WORK;
     bool diagnostic = false; // debug messages

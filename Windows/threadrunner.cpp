@@ -28,7 +28,7 @@ int ThreadRunner::InitTimer(long long interval) {
     // synchronise stopping of all threads after specified timeout 
     // using single common global WaitableTimer object
 
-    MT::SyncTimer& syncTimer = MT::SyncTimer::Instance();
+    SyncTimer& syncTimer = SyncTimer::Instance();
     if (!syncTimer.isValid())
         return ERR_API;
 

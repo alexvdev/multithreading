@@ -17,7 +17,7 @@ namespace MT {
 
 unsigned __stdcall SemaphoreRunner::SemaphoreThreadFunction(void* args) {
 
-    SyncTimer& syncTimer  = SyncTimer::Instance();
+    const SyncTimer& syncTimer = SyncTimer::Instance();
     const int threadNum   = getNextNumber();
     SyncTimerState tState = ST_WORK;
     CriticalSection sem_cs;
